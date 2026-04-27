@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	_ "modernc.org/sqlite"
 )
 
 const (
@@ -46,14 +46,10 @@ func OpenStore(cfg StoreConfig) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return nil, fmt.Errorf("knowledgegraph: mkdir db dir: %w", err)
 	}
-	dsn := "file:" + filepath.ToSlash(dbPath) + "?_busy_timeout=5000&_journal_mode=WAL"
-	gdb, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	dsn := sqliteDSN(dbPath)
+	sqlDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("knowledgegraph: open sqlite: %w", err)
-	}
-	sqlDB, err := gdb.DB()
-	if err != nil {
-		return nil, fmt.Errorf("knowledgegraph: sqlite db handle: %w", err)
 	}
 	sqlDB.SetMaxOpenConns(1)
 	if err := sqlDB.Ping(); err != nil {
@@ -61,6 +57,18 @@ func OpenStore(cfg StoreConfig) (*Store, error) {
 			err = errors.Join(err, fmt.Errorf("close sqlite after ping failure: %w", cerr))
 		}
 		return nil, fmt.Errorf("knowledgegraph: ping sqlite: %w", err)
+	}
+	if _, err := sqlDB.Exec(`PRAGMA journal_mode = WAL`); err != nil {
+		if cerr := sqlDB.Close(); cerr != nil {
+			err = errors.Join(err, fmt.Errorf("close sqlite after pragma failure: %w", cerr))
+		}
+		return nil, fmt.Errorf("knowledgegraph: pragma journal_mode: %w", err)
+	}
+	if _, err := sqlDB.Exec(`PRAGMA busy_timeout = 5000`); err != nil {
+		if cerr := sqlDB.Close(); cerr != nil {
+			err = errors.Join(err, fmt.Errorf("close sqlite after pragma failure: %w", cerr))
+		}
+		return nil, fmt.Errorf("knowledgegraph: pragma busy_timeout: %w", err)
 	}
 	if _, err := sqlDB.Exec(`PRAGMA foreign_keys = ON`); err != nil {
 		if cerr := sqlDB.Close(); cerr != nil {
@@ -76,6 +84,14 @@ func OpenStore(cfg StoreConfig) (*Store, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+func sqliteDSN(dbPath string) string {
+	clean := filepath.ToSlash(filepath.Clean(dbPath))
+	if strings.HasPrefix(clean, "file:") {
+		return clean
+	}
+	return "file:" + clean
 }
 
 func resolveDBPath(cfg StoreConfig) (string, error) {
