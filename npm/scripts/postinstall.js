@@ -6,7 +6,7 @@ const { spawnSync } = require("node:child_process");
 
 const pkg = require("../package.json");
 
-const repo = process.env.KGTOOL_REPOSITORY || "yiming/knowledgegraph-tool";
+const repo = process.env.KGTOOL_REPOSITORY || "OctoSucker/knowledgegraph-tool";
 const version = process.env.KGTOOL_VERSION || pkg.version;
 const baseURL =
   process.env.KGTOOL_RELEASE_BASE_URL ||

@@ -1,4 +1,4 @@
-module github.com/yiming/knowledgegraph-tool
+module github.com/OctoSucker/knowledgegraph-tool
 
 go 1.25.0
 

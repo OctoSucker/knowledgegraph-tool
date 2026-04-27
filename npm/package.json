@@ -1,6 +1,6 @@
 {
   "name": "knowledgegraph-tool",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "npm wrapper that installs the knowledgegraph-tool Go binary",
   "license": "MIT",
   "publishConfig": {
@@ -8,11 +8,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yiming/knowledgegraph-tool.git"
+    "url": "git+https://github.com/OctoSucker/knowledgegraph-tool.git"
   },
-  "homepage": "https://github.com/yiming/knowledgegraph-tool#readme",
+  "homepage": "https://github.com/OctoSucker/knowledgegraph-tool#readme",
   "bugs": {
-    "url": "https://github.com/yiming/knowledgegraph-tool/issues"
+    "url": "https://github.com/OctoSucker/knowledgegraph-tool/issues"
   },
   "bin": {
     "kgtool": "bin/kgtool.js"

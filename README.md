@@ -39,7 +39,7 @@ make build
 Go users can also install directly:
 
 ```bash
-go install github.com/yiming/knowledgegraph-tool/cmd/kgtool@latest
+go install github.com/OctoSucker/knowledgegraph-tool/cmd/kgtool@latest
 ```
 
 If you want one-command installation from the Node ecosystem, use the npm wrapper:

@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	knowledgegraph "github.com/yiming/knowledgegraph-tool"
+	knowledgegraph "github.com/OctoSucker/knowledgegraph-tool"
 )
 
 type commonFlags struct {
