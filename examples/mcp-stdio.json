@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "knowledgegraph-tool": {
+      "command": "/absolute/path/to/kgtool",
+      "args": [
+        "serve-mcp",
+        "--workspace",
+        "/absolute/path/to/workspace"
+      ],
+      "env": {
+        "OPENAI_API_KEY": "your-api-key",
+        "OPENAI_BASE_URL": "https://api.openai.com/v1",
+        "OPENAI_EMBEDDING_MODEL": "text-embedding-3-small"
+      }
+    }
+  }
+}

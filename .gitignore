@@ -30,3 +30,14 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+.DS_Store
+.gocache/
+node_modules/
+/bin/
+dist/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+npm/vendor/
+coverage.out

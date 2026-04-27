@@ -1,0 +1,37 @@
+{
+  "name": "knowledgegraph-tool",
+  "version": "0.1.0",
+  "description": "npm wrapper that installs the knowledgegraph-tool Go binary",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yiming/knowledgegraph-tool.git"
+  },
+  "homepage": "https://github.com/yiming/knowledgegraph-tool#readme",
+  "bugs": {
+    "url": "https://github.com/yiming/knowledgegraph-tool/issues"
+  },
+  "bin": {
+    "kgtool": "bin/kgtool.js"
+  },
+  "files": [
+    "bin",
+    "scripts",
+    "vendor"
+  ],
+  "scripts": {
+    "postinstall": "node ./scripts/postinstall.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "knowledge-graph",
+    "mcp",
+    "agent",
+    "cli"
+  ]
+}
