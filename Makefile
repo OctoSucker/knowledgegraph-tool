@@ -1,7 +1,7 @@
 APP := kgtool
 GOCACHE ?= $(CURDIR)/.gocache
 
-.PHONY: fmt test build install smoke release-snapshot npm-pack sync-npm-version
+.PHONY: fmt test build install smoke release-snapshot npm-pack
 
 fmt:
 	GOCACHE=$(GOCACHE) gofmt -w .
@@ -26,6 +26,3 @@ release-snapshot:
 
 npm-pack:
 	cd npm && npm pack
-
-sync-npm-version:
-	node scripts/set-npm-version.mjs $(VERSION)

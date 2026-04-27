@@ -54,7 +54,6 @@ For release publishing, this repository includes:
 
 - [`.goreleaser.yaml`](/Users/zecrey/Desktop/yiming/knowledgegraph-tool/.goreleaser.yaml) for multi-platform binaries
 - [npm/package.json](/Users/zecrey/Desktop/yiming/knowledgegraph-tool/npm/package.json) as the npm wrapper package
-- [release.yml](/Users/zecrey/Desktop/yiming/knowledgegraph-tool/.github/workflows/release.yml) for GitHub Release + npm publish
 
 ## CLI
 
@@ -122,7 +121,6 @@ make build
 make smoke
 make release-snapshot
 make npm-pack
-make sync-npm-version VERSION=v0.1.0
 ```
 
 ## Storage
@@ -151,19 +149,26 @@ The npm installer resolves the current OS/CPU and downloads the matching release
 
 ## Publishing
 
-The repository is set up so that pushing a tag like `v0.1.0` can drive both release channels:
+This repository is now set up for local manual publishing.
 
-1. GitHub Actions runs tests
-2. GoReleaser publishes multi-platform release binaries
-3. The workflow syncs `npm/package.json` to the tag version
-4. The workflow publishes the npm wrapper package
+Recommended flow:
 
-Required GitHub repository secrets:
+1. Run tests locally
+2. Build release artifacts locally with `goreleaser`
+3. Publish the npm wrapper locally from `npm/`
 
-- `NPM_TOKEN`: npm publish token
+Example:
+
+```bash
+make test
+goreleaser release --clean
+cd npm
+npm publish --access public
+```
 
 Manual preconditions:
 
 - The GitHub repository URL in `npm/package.json` must match the real repo
 - The module path in `go.mod` must match the real repo path
 - The npm package name must still be available
+- You must already be authenticated locally with npm
