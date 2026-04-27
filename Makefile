@@ -1,7 +1,7 @@
-APP := kgtool
+APP := kggraph
 GOCACHE ?= $(CURDIR)/.gocache
 
-.PHONY: fmt test build install smoke release-snapshot npm-pack
+.PHONY: fmt test build install smoke
 
 fmt:
 	GOCACHE=$(GOCACHE) gofmt -w .
@@ -11,18 +11,12 @@ test:
 
 build:
 	mkdir -p bin
-	GOCACHE=$(GOCACHE) go build -o bin/$(APP) ./cmd/kgtool
+	GOCACHE=$(GOCACHE) go build -o bin/$(APP) ./cmd/kggraph
 
 install:
-	GOCACHE=$(GOCACHE) go install ./cmd/kgtool
+	GOCACHE=$(GOCACHE) go install ./cmd/kggraph
 
 smoke:
-	rm -f /tmp/knowledgegraph-tool-smoke.sqlite
-	GOCACHE=$(GOCACHE) go run ./cmd/kgtool add-edge --db /tmp/knowledgegraph-tool-smoke.sqlite --from-id alpha --to-id beta
-	GOCACHE=$(GOCACHE) go run ./cmd/kgtool list-edges --db /tmp/knowledgegraph-tool-smoke.sqlite
-
-release-snapshot:
-	GOCACHE=$(GOCACHE) goreleaser release --snapshot --clean
-
-npm-pack:
-	cd npm && npm pack
+	rm -f /tmp/kggraph-smoke.sqlite
+	GOCACHE=$(GOCACHE) go run ./cmd/kggraph add-edge --db /tmp/kggraph-smoke.sqlite --from-id alpha --to-id beta
+	GOCACHE=$(GOCACHE) go run ./cmd/kggraph list-edges --db /tmp/kggraph-smoke.sqlite

@@ -13,8 +13,8 @@ func RunMCPServer(ctx context.Context, svc *Service) error {
 		return fmt.Errorf("knowledgegraph: service is nil")
 	}
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "knowledgegraph-tool",
-		Version: "0.1.0",
+		Name:    "KGgraph",
+		Version: "0.1.2",
 	}, nil)
 	for _, toolName := range svc.ToolNames() {
 		t := &mcp.Tool{

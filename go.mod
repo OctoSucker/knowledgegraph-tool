@@ -1,4 +1,4 @@
-module github.com/OctoSucker/knowledgegraph-tool
+module github.com/OctoSucker/KGgraph
 
 go 1.25.0
 

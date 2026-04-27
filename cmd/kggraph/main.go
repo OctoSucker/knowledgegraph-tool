@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	knowledgegraph "github.com/OctoSucker/knowledgegraph-tool"
+	kggraph "github.com/OctoSucker/KGgraph"
 )
 
 type commonFlags struct {
@@ -33,13 +33,13 @@ func main() {
 	case "add-edges-batch":
 		runAddEdgesBatch(ctx, args)
 	case "lookup-node-exact":
-		runLookup(ctx, args, knowledgegraph.ToolLookupNodeExact)
+		runLookup(ctx, args, kggraph.ToolLookupNodeExact)
 	case "lookup-node-semantic":
-		runLookup(ctx, args, knowledgegraph.ToolLookupNodeSemantic)
+		runLookup(ctx, args, kggraph.ToolLookupNodeSemantic)
 	case "list-nodes":
-		runList(ctx, args, knowledgegraph.ToolListNodes)
+		runList(ctx, args, kggraph.ToolListNodes)
 	case "list-edges":
-		runList(ctx, args, knowledgegraph.ToolListEdges)
+		runList(ctx, args, kggraph.ToolListEdges)
 	case "call":
 		runCall(ctx, args)
 	case "serve-mcp":
@@ -63,23 +63,23 @@ func addCommonFlags(fs *flag.FlagSet, c *commonFlags) {
 	fs.StringVar(&c.embeddingModel, "embedding-model", getenvDefault("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"), "OpenAI embedding model")
 }
 
-func openService(cfg commonFlags) (*knowledgegraph.Service, error) {
-	store, err := knowledgegraph.OpenStore(knowledgegraph.StoreConfig{
+func openService(cfg commonFlags) (*kggraph.Service, error) {
+	store, err := kggraph.OpenStore(kggraph.StoreConfig{
 		WorkspaceRoot: cfg.workspace,
 		DBPath:        cfg.dbPath,
 	})
 	if err != nil {
 		return nil, err
 	}
-	var embedder knowledgegraph.Embedder
+	var embedder kggraph.Embedder
 	if strings.TrimSpace(cfg.embeddingModel) != "" && (strings.TrimSpace(cfg.apiKey) != "" || strings.TrimSpace(cfg.baseURL) != "") {
-		embedder = knowledgegraph.NewOpenAIEmbedder(knowledgegraph.OpenAIConfig{
+		embedder = kggraph.NewOpenAIEmbedder(kggraph.OpenAIConfig{
 			BaseURL:        cfg.baseURL,
 			APIKey:         cfg.apiKey,
 			EmbeddingModel: cfg.embeddingModel,
 		})
 	}
-	return knowledgegraph.NewService(store, embedder)
+	return kggraph.NewService(store, embedder)
 }
 
 func runAddEdge(ctx context.Context, argv []string) {
@@ -96,7 +96,7 @@ func runAddEdge(ctx context.Context, argv []string) {
 	svc, err := openService(cfg)
 	exitOnOpenError(err)
 	defer svc.Close()
-	out, err := svc.Call(ctx, knowledgegraph.ToolAddEdge, map[string]any{
+	out, err := svc.Call(ctx, kggraph.ToolAddEdge, map[string]any{
 		"from_id":  fromID,
 		"to_id":    toID,
 		"positive": positive,
@@ -119,7 +119,7 @@ func runAddEdgesBatch(ctx context.Context, argv []string) {
 	svc, err := openService(cfg)
 	exitOnOpenError(err)
 	defer svc.Close()
-	out, err := svc.Call(ctx, knowledgegraph.ToolAddEdgesBatch, map[string]any{"edges": anySlice(edges)})
+	out, err := svc.Call(ctx, kggraph.ToolAddEdgesBatch, map[string]any{"edges": anySlice(edges)})
 	writeResult(err, out)
 }
 
@@ -182,7 +182,7 @@ func runServeMCP(ctx context.Context, argv []string) {
 	svc, err := openService(cfg)
 	exitOnOpenError(err)
 	defer svc.Close()
-	if err := knowledgegraph.RunMCPServer(ctx, svc); err != nil {
+	if err := kggraph.RunMCPServer(ctx, svc); err != nil {
 		writeJSONAndExit(1, map[string]any{"error": err.Error()})
 	}
 }
