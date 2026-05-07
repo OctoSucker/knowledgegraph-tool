@@ -1,123 +1,86 @@
 # KGgraph
 
-`KGgraph` is a standalone knowledge graph utility for agents and automation systems.
+`KGgraph` is a **graph-based reasoning engine** for AI agents and humans.
 
-It exposes the same capability surface through:
+Use it to:
+- store relationships as a graph
+- run better multi-hop reasoning (`A -> B -> C`)
+- keep reasoning clean in large graphs (built-in pruning)
 
-- a CLI binary: `kggraph`
-- an MCP stdio server: `kggraph serve-mcp`
+It provides:
+- **CLI** (`kggraph ...`)
+- **MCP stdio server** (`kggraph serve-mcp`)
 
-It stores graph data in SQLite and optionally uses an OpenAI-compatible embedding model for semantic lookup.
+You can start with plain language input. KGgraph will extract nodes/edges and write them for you.
 
-## Features
-
-- Directed graph storage with signed edges
-- Exact node lookup
-- Semantic node lookup with embeddings
-- Batch edge insertion
-- CLI and MCP parity for all exported tools
-
-## Installation
-
-Homebrew ([tap](https://github.com/0xfakeSpike/homebrew-tap)):
-
-```bash
-brew tap 0xfakeSpike/tap
-brew install kggraph
-```
-
-Build locally:
-
-```bash
-make build
-```
-
-Go install:
+## Install
 
 ```bash
 go install github.com/OctoSucker/KGgraph/cmd/kggraph@latest
 ```
 
-## CLI
-
-List nodes:
+## Quick start (30 seconds)
 
 ```bash
-kggraph list-nodes --workspace ./workspace
-```
-
-Add an edge:
-
-```bash
-kggraph add-edge --workspace ./workspace --from-id alpha --to-id beta
-```
-
-Generic tool call:
-
-```bash
-kggraph call \
+# 1) Ingest one statement (recommended)
+kggraph ingest-statement \
   --workspace ./workspace \
-  --tool kg_add_edge \
-  --args-json '{"from_id":"alpha","to_id":"beta","positive":true}'
+  --statement "战争升级通常会推高原油价格，并在市场未提前消化时压制美股大盘"
+
+# 2) Expand reasoning from one node
+kggraph expand-reasoning \
+  --workspace ./workspace \
+  --start-id "战争升级" \
+  --max-depth 3
 ```
 
-Semantic lookup:
+## Manual mode (optional)
+
+If you want explicit control, add nodes/edges directly:
 
 ```bash
-kggraph lookup-node-semantic \
-  --workspace ./workspace \
-  --term "NASDAQ" \
-  --api-key "$OPENAI_API_KEY" \
-  --embedding-model text-embedding-3-small
+kggraph upsert-node --workspace ./workspace --id "战争升级" --node-type event
+kggraph upsert-node --workspace ./workspace --id "原油上涨" --node-type event
+kggraph add-fact-edge --workspace ./workspace --from-id "战争升级" --to-id "原油上涨" --relation-type increases_probability_of --confidence 0.72
 ```
 
-## MCP
+## Defaults (no extra setup needed)
 
-Start MCP over stdio:
+By default, KGgraph auto-fills edge time fields internally:
+- `observed_at = now`
+- `valid_from = observed_at`
+- `valid_until = null` (open-ended)
+- reasoning `as_of = now`
+
+You only need to provide extra time fields when you want strict time-window behavior.
+
+For `ingest-statement`, KGgraph asks the LLM to infer edge time fields from the statement first; internal defaults are used only when the model cannot infer them.
+
+## MCP usage
 
 ```bash
-kggraph serve-mcp \
-  --workspace ./workspace \
-  --api-key "$OPENAI_API_KEY" \
-  --embedding-model text-embedding-3-small
+kggraph serve-mcp --workspace ./workspace
 ```
 
-Exposed MCP tools:
-
-- `kg_add_edge`
-- `kg_add_edges_batch`
+Main tools:
+- `kg_upsert_node`
+- `kg_add_fact_edge`
+- `kg_add_skill_edge`
+- `kg_ingest_statement`
+- `kg_expand_reasoning`
 - `kg_lookup_node_exact`
 - `kg_lookup_node_semantic`
 - `kg_list_nodes`
 - `kg_list_edges`
+- `kg_attach_edge_evidence`
+- `kg_verify_edge`
 
-Example client config: [examples/mcp-stdio.json](examples/mcp-stdio.json)
+Example MCP client config: `examples/mcp-stdio.json`
 
-## Development
+## Data location
 
-```bash
-make fmt
-make test
-make build
-make smoke
-```
-
-## Storage
-
-Default database path:
-
+Default DB:
 - `WORKSPACE/data/knowledgegraph.sqlite`
 
-Or pass an explicit SQLite file with `--db`.
-
-## Homebrew Publishing
-
-The formula lives in [0xfakeSpike/homebrew-tap](https://github.com/0xfakeSpike/homebrew-tap/blob/main/kggraph.rb).
-
-Release flow:
-
-1. Create a source tag on this repository
-2. Update `url` and `sha256` in `kggraph.rb` in the tap repository
-3. Commit and push the tap change
-
-The formula builds `kggraph` from source.
+Or set:
+- `--db /path/to/knowledgegraph.sqlite`
