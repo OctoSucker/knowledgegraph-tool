@@ -22,7 +22,7 @@ func (s *Service) IngestStatement(ctx context.Context, statement, graphKind, sou
 		sourceType = "llm_extracted"
 	}
 	if strings.TrimSpace(model) == "" {
-		model = DefaultIngestModel
+		model = IngestModelFromEnv()
 	}
 	if defaultConfidence <= 0 || defaultConfidence > 1 {
 		defaultConfidence = DefaultIngestConfidence

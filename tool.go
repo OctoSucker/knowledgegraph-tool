@@ -109,7 +109,7 @@ func (s *Service) Call(ctx context.Context, tool string, arguments map[string]an
 		graphKind, _ := parseOptionalString(arguments, "graph_kind", "knowledge")
 		sourceType, _ := parseOptionalString(arguments, "source_type", "llm_extracted")
 		sourceRef, _ := parseOptionalString(arguments, "source_ref", "")
-		model, _ := parseOptionalString(arguments, "model", DefaultIngestModel)
+		model, _ := parseOptionalString(arguments, "model", "")
 		defaultConfidence, _ := parseOptionalFloat(arguments, "default_confidence", DefaultIngestConfidence)
 		return s.IngestStatement(ctx, statement, graphKind, sourceType, sourceRef, model, defaultConfidence)
 	case ToolExpandReasoning:

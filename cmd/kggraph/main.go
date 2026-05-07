@@ -187,7 +187,7 @@ func runIngestStatement(ctx context.Context, argv []string) {
 	fs.StringVar(&graphKind, "graph-kind", "knowledge", "graph kind filter")
 	fs.StringVar(&sourceType, "source-type", "llm_extracted", "source type")
 	fs.StringVar(&sourceRef, "source-ref", "", "source ref")
-	fs.StringVar(&model, "model", kggraph.DefaultIngestModel, "LLM model used for extraction")
+	fs.StringVar(&model, "model", getenvDefault("OPENAI_MODEL", kggraph.DefaultIngestModel), "LLM model used for extraction")
 	fs.Float64Var(&defaultConfidence, "default-confidence", kggraph.DefaultIngestConfidence, "fallback confidence when LLM is uncertain")
 	mustParse(fs, argv)
 	args := map[string]any{
