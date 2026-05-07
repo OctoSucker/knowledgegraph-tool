@@ -134,9 +134,13 @@ func (s *Service) extractWithLLM(ctx context.Context, statement, model string, d
 	if !ok || emb == nil {
 		return nil, nil, fmt.Errorf("knowledgegraph: ingest statement: only OpenAI embedder supports llm extraction")
 	}
-	systemPrompt := "Extract a causal/skill graph from the user statement. Return STRICT JSON only. " +
-		`Schema: {"nodes":[{"id":"string","node_type":"entity|event|skill_step","aliases":["string"]}],"edges":[{"from":"string","to":"string","relation":"string","polarity":-1|0|1,"confidence":0..1,"condition":"string","observed_at":"RFC3339 or empty","valid_from":"RFC3339 or empty","valid_until":"RFC3339 or empty"}]}. ` +
-		"Use concise canonical node IDs in original language. Infer edge times from statement meaning instead of defaulting to now. For long-standing/general rules, use an early valid_from and empty valid_until."
+	systemPrompt := "Extract a compact knowledge graph from the user statement. Return STRICT JSON only. " +
+		`Schema: {"nodes":[{"id":"string","node_type":"entity|event|concept","aliases":["string"]}],"edges":[{"from":"string","to":"string","relation":"related_to|causes|increases_probability_of|decreases_probability_of|requires|blocks|supports|contradicts|part_of|example_of","polarity":-1|0|1,"confidence":0..1,"condition":"string","observed_at":"RFC3339 or empty","valid_from":"RFC3339 or empty","valid_until":"RFC3339 or empty"}]}. ` +
+		"Extract only relationships explicitly stated or strongly implied by the statement. Do not add outside knowledge. " +
+		"Use short canonical node IDs in the original language; prefer noun phrases, events, or concepts, not full sentences. Merge duplicate concepts within the statement. " +
+		"Use relation only from the allowed enum. Use polarity 1 for supporting/positive relations, -1 for opposing/negative relations, 0 for neutral structural relations. " +
+		"Confidence guide: 0.75-0.90 for explicit relations, 0.55-0.70 for strong implications, 0.35-0.55 for weak/speculative claims. " +
+		"Only fill observed_at, valid_from, or valid_until when the statement explicitly contains a date/time or validity window. Never invent dates. Use empty strings otherwise."
 	userPrompt := fmt.Sprintf("Default confidence if uncertain: %.2f\nStatement:\n%s", defaultConfidence, statement)
 	resp, err := emb.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Model: openai.ChatModel(model),
