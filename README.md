@@ -91,7 +91,7 @@ Exposed MCP tools:
 - `kg_list_nodes`
 - `kg_list_edges`
 
-Example client config: [examples/mcp-stdio.json](/Users/zecrey/Desktop/yiming/KGgraph/examples/mcp-stdio.json)
+Example client config: [examples/mcp-stdio.json](examples/mcp-stdio.json)
 
 ## Development
 
