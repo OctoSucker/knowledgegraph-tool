@@ -10,6 +10,7 @@ Use it to:
 It provides:
 - **CLI** (`kggraph ...`)
 - **MCP stdio server** (`kggraph serve-mcp`)
+- **Local graph viewer** (`kggraph graph-view`)
 
 You can start with plain language input. KGgraph will extract nodes/edges and write them for you.
 
@@ -79,6 +80,15 @@ Main tools:
 - `kg_verify_edge`
 
 Example MCP client config: `examples/mcp-stdio.json`
+
+## Graph viewer (manual refresh)
+
+```bash
+kggraph graph-view
+# open http://127.0.0.1:8787
+```
+
+In the viewer, set `start-id` / `max-depth` / `graph-kind`, then click `Refresh` to reload from SQLite.
 
 ## Limitations
 

@@ -54,6 +54,8 @@ func main() {
 		runCall(ctx, args)
 	case "serve-mcp":
 		runServeMCP(ctx, args)
+	case "graph-view":
+		runGraphView(ctx, args)
 	case "-h", "--help", "help":
 		writeJSONAndExit(0, map[string]any{"usage": usage()})
 	default:
@@ -62,7 +64,7 @@ func main() {
 }
 
 func usage() string {
-	return "commands: upsert-node, add-fact-edge, add-skill-edge, ingest-statement, attach-edge-evidence, verify-edge, expand-reasoning, lookup-node-exact, lookup-node-semantic, list-nodes, list-edges, call, serve-mcp"
+	return "commands: upsert-node, add-fact-edge, add-skill-edge, ingest-statement, attach-edge-evidence, verify-edge, expand-reasoning, lookup-node-exact, lookup-node-semantic, list-nodes, list-edges, call, serve-mcp, graph-view"
 }
 
 func addCommonFlags(fs *flag.FlagSet, c *commonFlags) {
@@ -289,11 +291,11 @@ func runExpandReasoning(ctx context.Context, argv []string) {
 	fs.Float64Var(&minScore, "min-score", 0, "minimum propagated score to keep")
 	mustParse(fs, argv)
 	args := map[string]any{
-		"start_id":    startID,
-		"graph_kind":  graphKind,
-		"max_depth":   maxDepth,
-		"max_branch":  maxBranch,
-		"max_results": maxResults,
+		"start_id":         startID,
+		"graph_kind":       graphKind,
+		"max_depth":        maxDepth,
+		"max_branch":       maxBranch,
+		"max_results":      maxResults,
 		"include_negative": includeNegative,
 		"min_score":        minScore,
 	}
