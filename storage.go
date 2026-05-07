@@ -20,7 +20,7 @@ const (
 
 type NodeRow struct {
 	ID        string `json:"id"`
-	Embedding []byte `json:"-"`
+	Embedding []byte `json:"embedding,omitempty"`
 }
 
 type EdgeRow struct {
