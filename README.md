@@ -15,8 +15,11 @@ You can start with plain language input. KGgraph will extract nodes/edges and wr
 
 ## Install
 
+Homebrew (recommended):
+
 ```bash
-go install github.com/OctoSucker/KGgraph/cmd/kggraph@latest
+brew tap 0xfakeSpike/tap
+brew install kggraph
 ```
 
 ## Quick start (30 seconds)
