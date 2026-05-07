@@ -144,28 +144,16 @@ func (g *Graph) CanonicalForContext(ctx context.Context, term string) (string, b
 }
 
 func (g *Graph) AllNodeIDs() ([]string, error) {
-	rows, err := g.AllNodes()
+	rows, err := g.store.NodesSelectAll()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("knowledgegraph: list nodes: %w", err)
 	}
 	out := make([]string, len(rows))
 	for i, r := range rows {
 		out[i] = r.ID
 	}
+	sort.Strings(out)
 	return out, nil
-}
-
-// AllNodes returns every node row, sorted by id. Embedding is the on-disk BLOB (little-endian float32); when JSON-encoded it appears as a base64 string per encoding/json rules for []byte.
-func (g *Graph) AllNodes() ([]NodeRow, error) {
-	if g == nil || g.store == nil {
-		return nil, fmt.Errorf("knowledgegraph: graph or store is nil")
-	}
-	rows, err := g.store.NodesSelectAll()
-	if err != nil {
-		return nil, fmt.Errorf("knowledgegraph: list nodes: %w", err)
-	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
-	return rows, nil
 }
 
 func (g *Graph) AllEdges() ([]EdgeRow, error) {

@@ -121,15 +121,11 @@ func (s *Service) Call(ctx context.Context, tool string, arguments map[string]an
 		}
 		return map[string]any{"canonical": canon, "matched": true}, nil
 	case ToolListNodes:
-		rows, err := s.graph.AllNodes()
+		nodeIDs, err := s.graph.AllNodeIDs()
 		if err != nil {
 			return nil, err
 		}
-		nodeIDs := make([]string, len(rows))
-		for i, r := range rows {
-			nodeIDs[i] = r.ID
-		}
-		return map[string]any{"node_ids": nodeIDs, "nodes": rows}, nil
+		return map[string]any{"node_ids": nodeIDs}, nil
 	case ToolListEdges:
 		rows, err := s.graph.AllEdges()
 		if err != nil {
@@ -206,7 +202,7 @@ func ToolDescription(tool string) string {
 	case ToolLookupNodeSemantic:
 		return "Find a node id: exact match first, else cosine similarity against stored node embeddings."
 	case ToolListNodes:
-		return "List all nodes: node_ids and nodes (each id plus embedding: base64 of little-endian float32 bytes when stored; empty nodes have no embedding field). For server-side similarity use kg_lookup_node_semantic."
+		return "List all knowledge-graph node ids in the database."
 	case ToolListEdges:
 		return "List all directed edges (from_id, to_id, positive correlation flag)."
 	default:

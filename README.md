@@ -40,7 +40,7 @@ go install github.com/OctoSucker/KGgraph/cmd/kggraph@latest
 
 ## CLI
 
-List nodes (JSON includes `node_ids` and `nodes` with optional `embedding`: base64 of little-endian float32 vector; omit if the node has no stored vector):
+List nodes:
 
 ```bash
 kggraph list-nodes --workspace ./workspace
