@@ -18,5 +18,5 @@ install:
 
 smoke:
 	rm -f /tmp/kggraph-smoke.sqlite
-	GOCACHE=$(GOCACHE) go run ./cmd/kggraph add-edge --db /tmp/kggraph-smoke.sqlite --from-id alpha --to-id beta
+	GOCACHE=$(GOCACHE) go run ./cmd/kggraph add-fact-edge --db /tmp/kggraph-smoke.sqlite --from-id alpha --to-id beta --relation-type related_to --confidence 0.7
 	GOCACHE=$(GOCACHE) go run ./cmd/kggraph list-edges --db /tmp/kggraph-smoke.sqlite

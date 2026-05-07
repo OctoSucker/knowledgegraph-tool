@@ -5,45 +5,75 @@ import (
 	"testing"
 )
 
-func TestResolveDBPath_requiresInput(t *testing.T) {
+func mustOpenTestStore(t *testing.T) *Store {
+	t.Helper()
+	root := t.TempDir()
+	store, err := OpenStore(StoreConfig{
+		WorkspaceRoot: root,
+		DBPath:        filepath.Join(root, "kg.sqlite"),
+	})
+	if err != nil {
+		t.Fatalf("open test store: %v", err)
+	}
+	return store
+}
+
+func TestStoreEdgeUpsertAndSelect(t *testing.T) {
 	t.Parallel()
-	_, err := resolveDBPath(StoreConfig{})
-	if err == nil {
-		t.Fatal("expected error when workspace and db path are empty")
+	s := mustOpenTestStore(t)
+	defer s.Close()
+	if err := s.NodeUpsert("a", "entity", "[]", "active", nil); err != nil {
+		t.Fatalf("upsert node a: %v", err)
+	}
+	if err := s.NodeUpsert("b", "entity", "[]", "active", nil); err != nil {
+		t.Fatalf("upsert node b: %v", err)
+	}
+	edgeID, err := s.EdgeUpsert(EdgeInput{
+		FromID:       "a",
+		ToID:         "b",
+		GraphKind:    "knowledge",
+		RelationType: "causes",
+		Polarity:     1,
+		Confidence:   0.7,
+	})
+	if err != nil {
+		t.Fatalf("edge upsert: %v", err)
+	}
+	if edgeID <= 0 {
+		t.Fatalf("expected positive edge id")
+	}
+	rows, err := s.EdgesSelectAll()
+	if err != nil {
+		t.Fatalf("select edges: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 edge, got %d", len(rows))
 	}
 }
 
-func TestOpenStore_withDBPath(t *testing.T) {
+func TestResolveDBPathRequiresConfig(t *testing.T) {
 	t.Parallel()
-	db := filepath.Join(t.TempDir(), "kg.sqlite")
-	store, err := OpenStore(StoreConfig{DBPath: db})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = store.Close() })
-
-	ok, err := store.NodeExists("nope")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ok {
-		t.Fatal("unexpected node")
+	if _, err := resolveDBPath(StoreConfig{}); err == nil {
+		t.Fatalf("expected resolveDBPath to fail with empty config")
 	}
 }
 
-func TestOpenStore_idempotentMigrations(t *testing.T) {
+func TestOpenStoreDBPathAndRepeatedMigrate(t *testing.T) {
 	t.Parallel()
-	db := filepath.Join(t.TempDir(), "kg.sqlite")
-	s1, err := OpenStore(StoreConfig{DBPath: db})
+	root := t.TempDir()
+	dbPath := filepath.Join(root, "kg.sqlite")
+
+	s1, err := OpenStore(StoreConfig{DBPath: dbPath})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("open store first time: %v", err)
 	}
 	if err := s1.Close(); err != nil {
-		t.Fatal(err)
+		t.Fatalf("close first store: %v", err)
 	}
-	s2, err := OpenStore(StoreConfig{DBPath: db})
+
+	s2, err := OpenStore(StoreConfig{DBPath: dbPath})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("open store second time: %v", err)
 	}
-	t.Cleanup(func() { _ = s2.Close() })
+	defer s2.Close()
 }

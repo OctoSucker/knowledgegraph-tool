@@ -51,7 +51,7 @@ type NodeUpsert struct {
 
 func (g *Graph) UpsertNode(ctx context.Context, in NodeUpsert) error {
 	_ = ctx
-	id := strings.TrimSpace(in.ID)
+	id := canonicalizeNodeID(in.ID)
 	if id == "" {
 		return fmt.Errorf("knowledgegraph: upsert node: empty id")
 	}
@@ -85,6 +85,7 @@ func (g *Graph) UpsertNode(ctx context.Context, in NodeUpsert) error {
 }
 
 func (g *Graph) EnsureNode(ctx context.Context, id string) error {
+	id = canonicalizeNodeID(id)
 	if id == "" {
 		return fmt.Errorf("knowledgegraph: ensure node: empty id")
 	}
@@ -118,6 +119,8 @@ type EdgeUpsert struct {
 }
 
 func (g *Graph) UpsertEdge(ctx context.Context, in EdgeUpsert) (int64, error) {
+	in.FromID = canonicalizeNodeID(in.FromID)
+	in.ToID = canonicalizeNodeID(in.ToID)
 	now := time.Now().UTC()
 	observedAt, validFrom, validUntil, err := normalizeEdgeTimes(in.ObservedAt, in.ValidFrom, in.ValidUntil, now)
 	if err != nil {
@@ -154,14 +157,27 @@ func (g *Graph) UpsertEdge(ctx context.Context, in EdgeUpsert) (int64, error) {
 }
 
 type ReasoningHit struct {
-	NodeID string   `json:"node_id"`
-	Score  float64  `json:"score"`
-	Depth  int      `json:"depth"`
-	Path   []string `json:"path"`
+	NodeID string          `json:"node_id"`
+	Score  float64         `json:"score"`
+	Depth  int             `json:"depth"`
+	Path   []string        `json:"path"`
+	Steps  []ReasoningStep `json:"steps,omitempty"`
+}
+
+type ReasoningStep struct {
+	EdgeID             int64   `json:"edge_id"`
+	FromID             string  `json:"from_id"`
+	ToID               string  `json:"to_id"`
+	RelationType       string  `json:"relation_type"`
+	RawConfidence      float64 `json:"raw_confidence"`
+	FreshnessFactor    float64 `json:"freshness_factor"`
+	VerificationFactor float64 `json:"verification_factor"`
+	FinalWeight        float64 `json:"final_weight"`
 }
 
 func (g *Graph) ExpandReasoning(startID, graphKind string, asOf time.Time, maxDepth, maxBranch, maxResults int, includeNegative bool, minScore float64) ([]ReasoningHit, error) {
-	if strings.TrimSpace(startID) == "" {
+	startID = canonicalizeNodeID(startID)
+	if startID == "" {
 		return nil, fmt.Errorf("knowledgegraph: expand reasoning: empty start_id")
 	}
 	if maxDepth <= 0 {
@@ -196,9 +212,10 @@ func (g *Graph) ExpandReasoning(startID, graphKind string, asOf time.Time, maxDe
 		score float64
 		depth int
 		path  []string
+		steps []ReasoningStep
 	}
 	best := map[string]ReasoningHit{}
-	queue := []state{{node: startID, score: 1, depth: 0, path: []string{startID}}}
+	queue := []state{{node: startID, score: 1, depth: 0, path: []string{startID}, steps: nil}}
 	for len(queue) > 0 {
 		cur := queue[0]
 		queue = queue[1:]
@@ -207,7 +224,9 @@ func (g *Graph) ExpandReasoning(startID, graphKind string, asOf time.Time, maxDe
 		}
 		out := adj[cur.node]
 		sort.Slice(out, func(i, j int) bool {
-			return edgeWeight(out[i], asOf) > edgeWeight(out[j], asOf)
+			wi, _ := edgeWeightWithDetail(out[i], asOf)
+			wj, _ := edgeWeightWithDetail(out[j], asOf)
+			return wi > wj
 		})
 		if len(out) > maxBranch {
 			out = out[:maxBranch]
@@ -216,7 +235,10 @@ func (g *Graph) ExpandReasoning(startID, graphKind string, asOf time.Time, maxDe
 			if !includeNegative && e.Polarity < 0 {
 				continue
 			}
-			w := edgeWeight(e, asOf)
+			if pathContainsNode(cur.path, e.ToID) {
+				continue
+			}
+			w, step := edgeWeightWithDetail(e, asOf)
 			if w <= 0 {
 				continue
 			}
@@ -225,12 +247,14 @@ func (g *Graph) ExpandReasoning(startID, graphKind string, asOf time.Time, maxDe
 				continue
 			}
 			nextPath := append(append([]string{}, cur.path...), e.ToID)
+			nextSteps := append(append([]ReasoningStep{}, cur.steps...), step)
 			if h, ok := best[e.ToID]; !ok || nextScore > h.Score {
 				best[e.ToID] = ReasoningHit{
 					NodeID: e.ToID,
 					Score:  nextScore,
 					Depth:  cur.depth + 1,
 					Path:   nextPath,
+					Steps:  nextSteps,
 				}
 			}
 			queue = append(queue, state{
@@ -238,6 +262,7 @@ func (g *Graph) ExpandReasoning(startID, graphKind string, asOf time.Time, maxDe
 				score: nextScore,
 				depth: cur.depth + 1,
 				path:  nextPath,
+				steps: nextSteps,
 			})
 		}
 	}
@@ -257,15 +282,22 @@ func (g *Graph) ExpandReasoning(startID, graphKind string, asOf time.Time, maxDe
 	return hits, nil
 }
 
-func edgeWeight(e EdgeRow, asOf time.Time) float64 {
+func edgeWeightWithDetail(e EdgeRow, asOf time.Time) (float64, ReasoningStep) {
+	step := ReasoningStep{
+		EdgeID:        e.ID,
+		FromID:        e.FromID,
+		ToID:          e.ToID,
+		RelationType:  e.RelationType,
+		RawConfidence: e.Confidence,
+	}
 	if e.ValidFrom != nil && asOf.Before(e.ValidFrom.UTC()) {
-		return 0
+		return 0, step
 	}
 	if e.ValidUntil != nil && asOf.After(e.ValidUntil.UTC()) {
-		return 0
+		return 0, step
 	}
 	if e.ExpiresAt != nil && asOf.After(e.ExpiresAt.UTC()) {
-		return 0
+		return 0, step
 	}
 	anchor := e.UpdatedAt
 	if e.ObservedAt != nil {
@@ -280,6 +312,7 @@ func edgeWeight(e EdgeRow, asOf time.Time) float64 {
 		half = 30
 	}
 	freshness := math.Pow(0.5, days/half)
+	step.FreshnessFactor = freshness
 	verify := 1.0 + 0.08*float64(e.EvidenceCount) - 0.12*float64(e.FailedCount)
 	if verify < 0.3 {
 		verify = 0.3
@@ -287,11 +320,13 @@ func edgeWeight(e EdgeRow, asOf time.Time) float64 {
 	if verify > 1.6 {
 		verify = 1.6
 	}
+	step.VerificationFactor = verify
 	score := e.Confidence * freshness * verify
 	if e.Polarity < 0 {
 		score *= 0.9
 	}
-	return score
+	step.FinalWeight = score
+	return score, step
 }
 
 func depthMinScore(base float64, depth int) float64 {
@@ -326,6 +361,7 @@ func (g *Graph) VerifyEdge(edgeID int64, success bool, confidence *float64, veri
 }
 
 func (g *Graph) CanonicalFor(term string) (string, bool, error) {
+	term = canonicalizeNodeID(term)
 	if term == "" {
 		return "", false, nil
 	}
@@ -493,4 +529,21 @@ func normalizeEdgeTimes(observedAt, validFrom, validUntil *time.Time, now time.T
 	obsCopy := obs
 	vfCopy := vf
 	return &obsCopy, &vfCopy, vu, nil
+}
+
+func canonicalizeNodeID(raw string) string {
+	s := strings.TrimSpace(strings.ToLower(raw))
+	if s == "" {
+		return ""
+	}
+	return strings.Join(strings.Fields(s), " ")
+}
+
+func pathContainsNode(path []string, node string) bool {
+	for _, p := range path {
+		if p == node {
+			return true
+		}
+	}
+	return false
 }

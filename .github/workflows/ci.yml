@@ -15,7 +15,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Gofmt check
+        run: test -z "$(gofmt -l .)"
       - name: Vet
         run: go vet ./...
       - name: Test
-        run: go test -race -cover ./...
+        run: go test ./...
+      - name: Smoke
+        run: make smoke

@@ -1,11 +1,11 @@
 # KGgraph
 
-`KGgraph` is a **graph-based reasoning engine** for AI agents and humans.
+`KGgraph` is a **lightweight graph memory and reasoning expansion tool** for AI agents and humans.
 
 Use it to:
 - store relationships as a graph
-- run better multi-hop reasoning (`A -> B -> C`)
-- keep reasoning clean in large graphs (built-in pruning)
+- expand weighted multi-hop paths (`A -> B -> C`)
+- limit noisy expansion with depth, branch, score, and time filters
 
 It provides:
 - **CLI** (`kggraph ...`)
@@ -76,6 +76,13 @@ Main tools:
 - `kg_verify_edge`
 
 Example MCP client config: `examples/mcp-stdio.json`
+
+## Limitations
+
+- not a full logical reasoner
+- LLM ingestion can still create noisy nodes/edges
+- semantic lookup requires embeddings
+- SQLite target is local/small-to-medium agent memory
 
 ## Data location
 

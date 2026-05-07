@@ -8,17 +8,17 @@ import (
 )
 
 const (
-	ToolUpsertNode        = "kg_upsert_node"
-	ToolAddFactEdge       = "kg_add_fact_edge"
-	ToolAddSkillEdge      = "kg_add_skill_edge"
-	ToolIngestStatement   = "kg_ingest_statement"
+	ToolUpsertNode         = "kg_upsert_node"
+	ToolAddFactEdge        = "kg_add_fact_edge"
+	ToolAddSkillEdge       = "kg_add_skill_edge"
+	ToolIngestStatement    = "kg_ingest_statement"
 	ToolAttachEdgeEvidence = "kg_attach_edge_evidence"
-	ToolVerifyEdge        = "kg_verify_edge"
-	ToolLookupNodeExact   = "kg_lookup_node_exact"
+	ToolVerifyEdge         = "kg_verify_edge"
+	ToolLookupNodeExact    = "kg_lookup_node_exact"
 	ToolLookupNodeSemantic = "kg_lookup_node_semantic"
-	ToolListNodes         = "kg_list_nodes"
-	ToolListEdges         = "kg_list_edges"
-	ToolExpandReasoning   = "kg_expand_reasoning"
+	ToolListNodes          = "kg_list_nodes"
+	ToolListEdges          = "kg_list_edges"
+	ToolExpandReasoning    = "kg_expand_reasoning"
 )
 
 type Service struct {
@@ -26,6 +26,8 @@ type Service struct {
 	graph *Graph
 }
 
+// Service is the single execution entrypoint for external callers.
+// Keep CLI and MCP integrations strictly routed through Service.Call.
 func NewService(store *Store, embedder Embedder) (*Service, error) {
 	graph, err := NewGraph(store, embedder)
 	if err != nil {
@@ -133,11 +135,25 @@ func (s *Service) Call(ctx context.Context, tool string, arguments map[string]an
 		}
 		out := make([]map[string]any, len(hits))
 		for i, h := range hits {
+			steps := make([]map[string]any, len(h.Steps))
+			for j, st := range h.Steps {
+				steps[j] = map[string]any{
+					"edge_id":             st.EdgeID,
+					"from_id":             st.FromID,
+					"to_id":               st.ToID,
+					"relation_type":       st.RelationType,
+					"raw_confidence":      st.RawConfidence,
+					"freshness_factor":    st.FreshnessFactor,
+					"verification_factor": st.VerificationFactor,
+					"final_weight":        st.FinalWeight,
+				}
+			}
 			out[i] = map[string]any{
 				"node_id": h.NodeID,
 				"score":   h.Score,
 				"depth":   h.Depth,
 				"path":    h.Path,
+				"steps":   steps,
 			}
 		}
 		return map[string]any{
@@ -233,11 +249,11 @@ func (s *Service) Call(ctx context.Context, tool string, arguments map[string]an
 		nodes := make([]map[string]any, len(rows))
 		for i, n := range rows {
 			nodes[i] = map[string]any{
-				"id":          n.ID,
-				"node_type":   n.NodeType,
+				"id":           n.ID,
+				"node_type":    n.NodeType,
 				"aliases_json": n.AliasesJSON,
-				"status":      n.Status,
-				"updated_at":  n.UpdatedAt.Format(time.RFC3339),
+				"status":       n.Status,
+				"updated_at":   n.UpdatedAt.Format(time.RFC3339),
 			}
 		}
 		return map[string]any{"nodes": nodes}, nil
@@ -249,23 +265,23 @@ func (s *Service) Call(ctx context.Context, tool string, arguments map[string]an
 		edges := make([]map[string]any, len(rows))
 		for i, e := range rows {
 			item := map[string]any{
-				"id":                  e.ID,
-				"from_id":             e.FromID,
-				"to_id":               e.ToID,
-				"graph_kind":          e.GraphKind,
-				"relation_type":       e.RelationType,
-				"polarity":            e.Polarity,
-				"confidence":          e.Confidence,
-				"condition_text":      e.ConditionText,
-				"source_type":         e.SourceType,
-				"source_ref":          e.SourceRef,
-				"created_at":          e.CreatedAt.Format(time.RFC3339),
-				"evidence_count":      e.EvidenceCount,
-				"failed_count":        e.FailedCount,
+				"id":                   e.ID,
+				"from_id":              e.FromID,
+				"to_id":                e.ToID,
+				"graph_kind":           e.GraphKind,
+				"relation_type":        e.RelationType,
+				"polarity":             e.Polarity,
+				"confidence":           e.Confidence,
+				"condition_text":       e.ConditionText,
+				"source_type":          e.SourceType,
+				"source_ref":           e.SourceRef,
+				"created_at":           e.CreatedAt.Format(time.RFC3339),
+				"evidence_count":       e.EvidenceCount,
+				"failed_count":         e.FailedCount,
 				"decay_half_life_days": e.DecayHalfLifeDays,
-				"is_executable":       e.IsExecutable,
-				"activation_rule":     e.ActivationRule,
-				"updated_at":          e.UpdatedAt.Format(time.RFC3339),
+				"is_executable":        e.IsExecutable,
+				"activation_rule":      e.ActivationRule,
+				"updated_at":           e.UpdatedAt.Format(time.RFC3339),
 			}
 			if e.LastVerifiedAt != nil {
 				item["last_verified_at"] = e.LastVerifiedAt.Format(time.RFC3339)
@@ -370,12 +386,12 @@ func ToolSchema(tool string) map[string]any {
 		return map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"start_id":    map[string]any{"type": "string"},
-				"graph_kind":  map[string]any{"type": "string"},
-				"as_of":       map[string]any{"type": "string", "description": "RFC3339"},
-				"max_depth":   map[string]any{"type": "integer"},
-				"max_branch":  map[string]any{"type": "integer"},
-				"max_results": map[string]any{"type": "integer"},
+				"start_id":         map[string]any{"type": "string"},
+				"graph_kind":       map[string]any{"type": "string"},
+				"as_of":            map[string]any{"type": "string", "description": "RFC3339"},
+				"max_depth":        map[string]any{"type": "integer"},
+				"max_branch":       map[string]any{"type": "integer"},
+				"max_results":      map[string]any{"type": "integer"},
 				"include_negative": map[string]any{"type": "boolean"},
 				"min_score":        map[string]any{"type": "number"},
 			},

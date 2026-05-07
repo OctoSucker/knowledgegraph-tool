@@ -2,39 +2,46 @@ package knowledgegraph
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 )
 
-func TestService_Call_addEdgeAndListNodes(t *testing.T) {
+func TestServiceCallAddFactEdgeAndExpand(t *testing.T) {
 	t.Parallel()
-	ctx := context.Background()
-	db := filepath.Join(t.TempDir(), "kg.sqlite")
-	store, err := OpenStore(StoreConfig{DBPath: db})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = store.Close() })
-
+	store := mustOpenTestStore(t)
+	defer store.Close()
 	svc, err := NewService(store, nil)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("new service: %v", err)
 	}
-	t.Cleanup(func() { _ = svc.Close() })
-
-	_, err = svc.Call(ctx, ToolAddEdge, map[string]any{
-		"from_id": "a",
-		"to_id":   "b",
+	_, err = svc.Call(context.Background(), ToolAddFactEdge, map[string]any{
+		"from_id":       "War Risk",
+		"to_id":         "Oil Up",
+		"relation_type": "increases_probability_of",
+		"confidence":    0.75,
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("add fact edge: %v", err)
 	}
-	out, err := svc.Call(ctx, ToolListNodes, nil)
+	out, err := svc.Call(context.Background(), ToolExpandReasoning, map[string]any{
+		"start_id":   "war risk",
+		"graph_kind": "knowledge",
+		"max_depth":  2,
+	})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("expand reasoning: %v", err)
 	}
-	ids, _ := out["node_ids"].([]string)
-	if len(ids) != 2 {
-		t.Fatalf("node_ids: %#v", out["node_ids"])
+	hits, ok := out["hits"].([]map[string]any)
+	if !ok {
+		t.Fatalf("hits has unexpected type: %#v", out["hits"])
+	}
+	if len(hits) == 0 {
+		t.Fatalf("expected non-empty hits")
+	}
+	steps, ok := hits[0]["steps"].([]map[string]any)
+	if !ok {
+		t.Fatalf("steps has unexpected type: %#v", hits[0]["steps"])
+	}
+	if len(steps) == 0 {
+		t.Fatalf("expected non-empty steps in first hit")
 	}
 }
