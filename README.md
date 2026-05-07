@@ -19,10 +19,11 @@ It stores graph data in SQLite and optionally uses an OpenAI-compatible embeddin
 
 ## Installation
 
-Homebrew:
+Homebrew ([tap](https://github.com/0xfakeSpike/homebrew-tap)):
 
 ```bash
-brew install --formula https://raw.githubusercontent.com/OctoSucker/KGgraph/main/Formula/kggraph.rb
+brew tap 0xfakeSpike/tap
+brew install kggraph
 ```
 
 Build locally:
@@ -111,13 +112,12 @@ Or pass an explicit SQLite file with `--db`.
 
 ## Homebrew Publishing
 
-This repository is structured to be used as a Homebrew formula source.
+The formula lives in [0xfakeSpike/homebrew-tap](https://github.com/0xfakeSpike/homebrew-tap/blob/main/kggraph.rb).
 
 Release flow:
 
-1. Create a source tag
-2. Update `url` and `sha256` in [Formula/kggraph.rb](/Users/zecrey/Desktop/yiming/KGgraph/Formula/kggraph.rb)
-3. Commit the formula update
-4. Either install directly from the raw formula URL or sync the formula into a dedicated Homebrew tap repository
+1. Create a source tag on this repository
+2. Update `url` and `sha256` in `kggraph.rb` in the tap repository
+3. Commit and push the tap change
 
-The Homebrew formula builds `kggraph` from source.
+The formula builds `kggraph` from source.
