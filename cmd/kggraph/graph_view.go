@@ -649,9 +649,14 @@ const graphViewHTML = `<!doctype html>
         filteredEdges = filteredEdges.filter(e => selectedRelationFilters.has(relationKey(e)));
       }
       const vis = buildVisData(filteredNodes, filteredEdges);
+      tunePhysics(filteredNodes.length, filteredEdges.length);
       applyGraphData(vis.nodes, vis.edges);
       updateStats(filteredNodes.length, filteredEdges.length, rawNodes.length, rawEdges.length);
       syncURLState();
+      if (filteredNodes.length === 0 && filteredEdges.length === 0) {
+        network.setOptions({ physics: { enabled: false } });
+        setStatus("ok", "Empty graph");
+      }
     }
     function applyGraphData(nodes, edges) {
       const nextNodes = nodes.map(n => ({ ...n }));
@@ -661,17 +666,59 @@ const graphViewHTML = `<!doctype html>
       lastEdges = edges;
     }
 
+    function tunePhysics(nodeCount, edgeCount) {
+      const n = Math.max(nodeCount, 1);
+      const m = Math.max(edgeCount, 0);
+      const springLength = Math.min(520, 140 + Math.sqrt(n) * 48 + Math.sqrt(m) * 18);
+      const grav = Math.max(-56000, -11000 - n * 260 - m * 55);
+      const iters = Math.min(1600, 280 + n * 5 + m * 3);
+      const nodeMargin = n > 100 ? 10 : n > 50 ? 12 : 16;
+      const edgeFont = m > 60 ? 10 : m > 35 ? 11 : 12;
+      network.setOptions({
+        nodes: {
+          margin: nodeMargin,
+          font: { size: n > 80 ? 12 : 14, color: "#334155", face: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" }
+        },
+        edges: {
+          font: { size: edgeFont, color: "#64748b", strokeWidth: 3, strokeColor: "rgba(255,255,255,0.92)" }
+        },
+        physics: {
+          enabled: true,
+          maxVelocity: 42,
+          minVelocity: 0.35,
+          timestep: 0.48,
+          stabilization: {
+            enabled: true,
+            iterations: iters,
+            updateInterval: 30,
+            fit: false
+          },
+          barnesHut: {
+            gravitationalConstant: grav,
+            centralGravity: 0.1,
+            springLength: springLength,
+            springConstant: 0.007,
+            damping: 0.58,
+            avoidOverlap: 1
+          }
+        }
+      });
+    }
+
     const container = document.getElementById("graph");
     const network = new vis.Network(container, {nodes: [], edges: []}, {
       interaction: {
         hover: true,
         tooltipDelay: 120,
         zoomView: true,
-        dragView: true
+        dragView: true,
+        hideEdgesOnDrag: true,
+        hideEdgesOnZoom: true
       },
       nodes: {
         shape: "dot",
         size: 16,
+        margin: 14,
         shadow: { enabled: true, color: "rgba(31,42,55,0.18)", size: 8, x: 0, y: 3 },
         font: {
           size: 14,
@@ -682,14 +729,33 @@ const graphViewHTML = `<!doctype html>
       },
       edges: {
         arrows: { to: { enabled: true, scaleFactor: 0.75 } },
-        smooth: { enabled: true, type: "curvedCW", roundness: 0.18 },
+        smooth: { enabled: true, type: "continuous", roundness: 0.42 },
         font: { size: 12, color: "#64748b", strokeWidth: 3, strokeColor: "rgba(255,255,255,0.9)" },
         width: 2,
         selectionWidth: 3
       },
       physics: {
-        stabilization: { enabled: true, iterations: 160 },
-        barnesHut: { springLength: 130, springConstant: 0.02, damping: 0.74, avoidOverlap: 0.46 }
+        enabled: true,
+        maxVelocity: 42,
+        minVelocity: 0.35,
+        timestep: 0.48,
+        stabilization: { enabled: true, iterations: 400, updateInterval: 30, fit: false },
+        barnesHut: {
+          gravitationalConstant: -22000,
+          centralGravity: 0.1,
+          springLength: 220,
+          springConstant: 0.008,
+          damping: 0.58,
+          avoidOverlap: 1
+        }
+      }
+    });
+
+    network.on("stabilizationIterationsDone", function () {
+      network.setOptions({ physics: { enabled: false } });
+      if (lastNodes.length > 0) {
+        network.fit({ animation: { duration: 320, easingFunction: "easeInOutQuad" } });
+        setStatus("ok", "Loaded");
       }
     });
 
@@ -735,14 +801,10 @@ const graphViewHTML = `<!doctype html>
           }
         });
         renderLegend(Array.from(relationColors.entries()).map(([label, color]) => ({ label, color })));
-        if (lastNodes.length > 0) {
-          network.fit({ animation: { duration: 260, easingFunction: "easeInOutQuad" } });
-        }
         setDetail("Selection", [
           ["Hint", "点击节点或边，查看详细信息（尤其是 edge 的属性）。"],
           ["Current Filter", "start_id=" + (startId || "-") + ", max_depth=" + (maxDepth || "-") + ", graph_kind=" + (graphKind || "-")]
         ]);
-        setStatus("ok", "Loaded");
       } catch (err) {
         setStatus("err", "Network error");
       }
@@ -753,6 +815,7 @@ const graphViewHTML = `<!doctype html>
       labelsVisible = !labelsVisible;
       document.getElementById("toggleLabelBtn").textContent = labelsVisible ? "Hide Labels" : "Show Labels";
       if (lastNodes.length > 0 || lastEdges.length > 0) {
+        tunePhysics(lastNodes.length, lastEdges.length);
         applyGraphData(lastNodes, lastEdges);
       }
       syncURLState();
@@ -801,9 +864,10 @@ const graphViewHTML = `<!doctype html>
       network.fit({ animation: { duration: 240, easingFunction: "easeInOutQuad" } });
     });
     document.getElementById("stabilizeBtn").addEventListener("click", () => {
+      if (lastNodes.length === 0 && lastEdges.length === 0) return;
       setStatus("loading", "Stabilizing...");
-      network.stabilize(120);
-      setStatus("ok", "Loaded");
+      tunePhysics(lastNodes.length, lastEdges.length);
+      network.stabilize(Math.min(1200, 300 + lastNodes.length * 5 + lastEdges.length * 2));
     });
     network.on("selectNode", params => {
       const id = params.nodes && params.nodes[0];
