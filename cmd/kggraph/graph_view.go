@@ -398,6 +398,24 @@ const graphViewHTML = `<!doctype html>
       color: #1e3a8a;
       font-weight: 700;
     }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .slider-row input[type="range"] {
+      flex: 1;
+      min-width: 100px;
+      accent-color: var(--primary);
+    }
+    .slider-val {
+      min-width: 26px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      text-align: right;
+    }
     .status {
       position: absolute;
       top: 10px;
@@ -438,6 +456,13 @@ const graphViewHTML = `<!doctype html>
       <div class="field">
         <label for="focusNode">focus node</label>
         <input id="focusNode" placeholder="type node id and press Enter"/>
+      </div>
+      <div class="field" style="min-width: 200px;">
+        <label for="labelFontSize">label size (px)</label>
+        <div class="slider-row">
+          <input type="range" id="labelFontSize" min="10" max="28" value="16" step="1"/>
+          <span id="labelFontSizeVal" class="slider-val">16</span>
+        </div>
       </div>
       <div class="actions">
         <button id="toggleLabelBtn" class="btn-ghost">Hide Labels</button>
@@ -579,6 +604,9 @@ const graphViewHTML = `<!doctype html>
       else p.delete("rel_filters");
       if (nts.length > 0) p.set("node_type_filters", nts.join(","));
       else p.delete("node_type_filters");
+      const labelFont = (document.getElementById("labelFontSize").value || "16").trim();
+      if (labelFont && labelFont !== "16") p.set("label_font", labelFont);
+      else p.delete("label_font");
       window.history.replaceState({}, "", u.toString());
     }
     function parseCSVParam(value) {
@@ -598,6 +626,11 @@ const graphViewHTML = `<!doctype html>
       document.getElementById("maxDepth").value = maxDepth;
       document.getElementById("graphKind").value = graphKind;
       document.getElementById("focusNode").value = focusNode;
+      let lf = parseInt((p.get("label_font") || "16").trim(), 10);
+      if (isNaN(lf)) lf = 16;
+      lf = Math.min(28, Math.max(10, lf));
+      document.getElementById("labelFontSize").value = String(lf);
+      document.getElementById("labelFontSizeVal").textContent = String(lf);
       labelsVisible = (p.get("labels") || "").toLowerCase() !== "off";
       document.getElementById("toggleLabelBtn").textContent = labelsVisible ? "Hide Labels" : "Show Labels";
       selectedRelationFilters.clear();
@@ -665,6 +698,33 @@ const graphViewHTML = `<!doctype html>
       lastEdges = edges;
     }
 
+    function applyGraphFonts() {
+      let nodePx = parseInt(document.getElementById("labelFontSize").value, 10);
+      if (isNaN(nodePx)) nodePx = 16;
+      nodePx = Math.min(28, Math.max(10, nodePx));
+      document.getElementById("labelFontSize").value = String(nodePx);
+      document.getElementById("labelFontSizeVal").textContent = String(nodePx);
+      const edgePx = Math.max(8, nodePx - 2);
+      const strokeW = Math.max(2, Math.round(nodePx / 4));
+      network.setOptions({
+        nodes: {
+          font: {
+            size: nodePx,
+            color: "#334155",
+            face: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          }
+        },
+        edges: {
+          font: {
+            size: edgePx,
+            color: "#64748b",
+            strokeWidth: strokeW,
+            strokeColor: "rgba(255,255,255,0.9)"
+          }
+        }
+      });
+    }
+
     const container = document.getElementById("graph");
     const network = new vis.Network(container, {nodes: [], edges: []}, {
       interaction: {
@@ -678,7 +738,7 @@ const graphViewHTML = `<!doctype html>
         size: 16,
         shadow: { enabled: true, color: "rgba(31,42,55,0.18)", size: 8, x: 0, y: 3 },
         font: {
-          size: 14,
+          size: 16,
           color: "#334155",
           face: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
         },
@@ -687,7 +747,7 @@ const graphViewHTML = `<!doctype html>
       edges: {
         arrows: { to: { enabled: true, scaleFactor: 0.75 } },
         smooth: { enabled: true, type: "curvedCW", roundness: 0.18 },
-        font: { size: 12, color: "#64748b", strokeWidth: 3, strokeColor: "rgba(255,255,255,0.9)" },
+        font: { size: 14, color: "#64748b", strokeWidth: 4, strokeColor: "rgba(255,255,255,0.9)" },
         width: 2,
         selectionWidth: 3
       },
@@ -801,6 +861,10 @@ const graphViewHTML = `<!doctype html>
     ["startId", "maxDepth", "graphKind", "focusNode"].forEach(id => {
       document.getElementById(id).addEventListener("change", syncURLState);
     });
+    document.getElementById("labelFontSize").addEventListener("input", () => {
+      applyGraphFonts();
+      syncURLState();
+    });
     document.getElementById("fitBtn").addEventListener("click", () => {
       network.fit({ animation: { duration: 240, easingFunction: "easeInOutQuad" } });
     });
@@ -867,6 +931,7 @@ const graphViewHTML = `<!doctype html>
       setStatus("ok", "Focused: " + id);
     });
     restoreStateFromURL();
+    applyGraphFonts();
     refresh();
   </script>
 </body>
