@@ -51,10 +51,47 @@ func TestStoreEdgeUpsertAndSelect(t *testing.T) {
 	}
 }
 
-func TestResolveDBPathRequiresConfig(t *testing.T) {
-	t.Parallel()
-	if _, err := resolveDBPath(StoreConfig{}); err == nil {
-		t.Fatalf("expected resolveDBPath to fail with empty config")
+func TestResolveDBPathDefaultUsesXDGDataHome(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("KG_DB_PATH", "")
+	t.Setenv("XDG_DATA_HOME", root)
+
+	got, err := resolveDBPath(StoreConfig{})
+	if err != nil {
+		t.Fatalf("resolve default db path: %v", err)
+	}
+	want := filepath.Join(root, "kggraph", "knowledgegraph.sqlite")
+	if got != want {
+		t.Fatalf("default db path mismatch: got=%q want=%q", got, want)
+	}
+}
+
+func TestResolveDBPathWorkspacePrecedesDefault(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("KG_DB_PATH", "")
+	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "xdg"))
+
+	got, err := resolveDBPath(StoreConfig{WorkspaceRoot: root})
+	if err != nil {
+		t.Fatalf("resolve workspace db path: %v", err)
+	}
+	want := filepath.Join(root, "data", "knowledgegraph.sqlite")
+	if got != want {
+		t.Fatalf("workspace db path mismatch: got=%q want=%q", got, want)
+	}
+}
+
+func TestResolveDBPathEnvPrecedesWorkspace(t *testing.T) {
+	root := t.TempDir()
+	envDBPath := filepath.Join(root, "env.sqlite")
+	t.Setenv("KG_DB_PATH", envDBPath)
+
+	got, err := resolveDBPath(StoreConfig{WorkspaceRoot: filepath.Join(root, "workspace")})
+	if err != nil {
+		t.Fatalf("resolve env db path: %v", err)
+	}
+	if got != envDBPath {
+		t.Fatalf("env db path mismatch: got=%q want=%q", got, envDBPath)
 	}
 }
 

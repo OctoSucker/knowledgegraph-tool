@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -19,12 +20,12 @@ const (
 )
 
 type NodeRow struct {
-	ID         string    `json:"id"`
-	NodeType   string    `json:"node_type"`
-	AliasesJSON string   `json:"aliases_json"`
-	Status     string    `json:"status"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	Embedding  []byte    `json:"-"`
+	ID          string    `json:"id"`
+	NodeType    string    `json:"node_type"`
+	AliasesJSON string    `json:"aliases_json"`
+	Status      string    `json:"status"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Embedding   []byte    `json:"-"`
 }
 
 type EdgeRow struct {
@@ -72,13 +73,13 @@ type EdgeInput struct {
 }
 
 type EdgeEvidenceInput struct {
-	EdgeID      int64
-	SourceType  string
-	SourceRef   string
-	Snippet     string
-	ObservedAt  *time.Time
-	Supports    bool
-	Weight      float64
+	EdgeID     int64
+	SourceType string
+	SourceRef  string
+	Snippet    string
+	ObservedAt *time.Time
+	Supports   bool
+	Weight     float64
 }
 
 type Store struct {
@@ -137,11 +138,14 @@ func sqliteDSN(dbPath string) string {
 }
 
 func resolveDBPath(cfg StoreConfig) (string, error) {
-	if cfg.DBPath != "" {
+	if strings.TrimSpace(cfg.DBPath) != "" {
 		return filepath.Clean(cfg.DBPath), nil
 	}
-	if cfg.WorkspaceRoot == "" {
-		return "", fmt.Errorf("knowledgegraph: db_path or workspace is required")
+	if envDBPath := strings.TrimSpace(os.Getenv("KG_DB_PATH")); envDBPath != "" {
+		return filepath.Clean(envDBPath), nil
+	}
+	if strings.TrimSpace(cfg.WorkspaceRoot) == "" {
+		return defaultDBPath()
 	}
 	dataDir := filepath.Join(cfg.WorkspaceRoot, "data")
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
@@ -160,6 +164,31 @@ func resolveDBPath(cfg StoreConfig) (string, error) {
 		return "", fmt.Errorf("knowledgegraph: stat legacy sqlite: %w", err)
 	}
 	return current, nil
+}
+
+func defaultDBPath() (string, error) {
+	dataRoot := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
+	if dataRoot != "" {
+		return filepath.Join(dataRoot, "kggraph", sqliteFilename), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("knowledgegraph: resolve default db path: %w", err)
+	}
+	if strings.TrimSpace(home) == "" {
+		return "", fmt.Errorf("knowledgegraph: resolve default db path: empty home directory")
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join(home, "Library", "Application Support", "kggraph", sqliteFilename), nil
+	case "windows":
+		if appData := strings.TrimSpace(os.Getenv("APPDATA")); appData != "" {
+			return filepath.Join(appData, "kggraph", sqliteFilename), nil
+		}
+		return filepath.Join(home, "AppData", "Roaming", "kggraph", sqliteFilename), nil
+	default:
+		return filepath.Join(home, ".local", "share", "kggraph", sqliteFilename), nil
+	}
 }
 
 func (s *Store) Close() error {

@@ -14,7 +14,7 @@ func RunMCPServer(ctx context.Context, svc *Service) error {
 	}
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "KGgraph",
-		Version: "0.1.3",
+		Version: "0.2.8",
 	}, nil)
 	for _, toolName := range svc.ToolNames() {
 		t := &mcp.Tool{

@@ -99,8 +99,13 @@ In the viewer, set `start-id` / `max-depth` / `graph-kind`, then click `Refresh`
 
 ## Data location
 
-Default DB:
-- `WORKSPACE/data/knowledgegraph.sqlite`
+DB path resolution order:
+1. `--db /path/to/knowledgegraph.sqlite`
+2. `KG_DB_PATH`
+3. `--workspace WORKSPACE` -> `WORKSPACE/data/knowledgegraph.sqlite`
+4. User data directory:
+   - macOS: `~/Library/Application Support/kggraph/knowledgegraph.sqlite`
+   - Linux: `${XDG_DATA_HOME}/kggraph/knowledgegraph.sqlite` or `~/.local/share/kggraph/knowledgegraph.sqlite`
+   - Windows: `%APPDATA%\kggraph\knowledgegraph.sqlite`
 
-Or set:
-- `--db /path/to/knowledgegraph.sqlite`
+For agent or MCP usage, prefer `--workspace` or `--db` to avoid mixing unrelated projects in one graph.
