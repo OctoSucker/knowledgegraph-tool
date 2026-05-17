@@ -11,6 +11,7 @@ It provides:
 - **CLI** (`kggraph ...`)
 - **MCP stdio server** (`kggraph serve-mcp`)
 - **Local graph viewer** (`kggraph graph-view`)
+- **Decision records** (`kggraph record-decision`) for freezing thesis, evidence, counter-evidence, failure conditions, and review triggers
 
 You can start with plain language input. KGgraph will extract nodes/edges and write them for you.
 
@@ -48,6 +49,48 @@ kggraph upsert-node --workspace ./workspace --id "原油上涨" --node-type even
 kggraph add-fact-edge --workspace ./workspace --from-id "战争升级" --to-id "原油上涨" --relation-type increases_probability_of --confidence 0.72
 ```
 
+## Decision discipline mode
+
+Use `record-decision` when KGgraph is used for trading or other judgment-heavy workflows. This command refuses to write a decision unless it includes supporting evidence, counter-evidence, and failure conditions.
+
+```bash
+kggraph record-decision \
+  --workspace ./workspace \
+  --market "Oil escalation market" \
+  --thesis "Escalation risk is underpriced" \
+  --action buy \
+  --confidence 0.72 \
+  --evidence-json '["shipping insurance rising", "market not pricing weekend headline risk"]' \
+  --counter-evidence-json '["front-month oil already bid"]' \
+  --failure-conditions-json '["confirmed ceasefire", "contract rules exclude proxy damage"]' \
+  --next-triggers-json '["official military statement", "settlement source update"]' \
+  --position-rule "max 1u until settlement clarity"
+```
+
+Decision records are stored in `graph_kind=decision`. To inspect the full judgment, include negative edges:
+
+```bash
+kggraph expand-reasoning \
+  --workspace ./workspace \
+  --graph-kind decision \
+  --start-id "market:Oil escalation market" \
+  --include-negative \
+  --max-depth 4
+```
+
+After the trade or event resolves, write the review back into the graph. Incorrect, mixed, or invalidated outcomes require lessons.
+
+```bash
+kggraph review-decision \
+  --workspace ./workspace \
+  --market "Oil escalation market" \
+  --thesis "Escalation risk is underpriced" \
+  --outcome incorrect \
+  --realized-result "Ceasefire confirmed and oil sold off" \
+  --lessons-json '["do not ignore ceasefire verification path"]' \
+  --rule-updates-json '["reduce size when a listed failure condition is imminent"]'
+```
+
 ## Defaults (no extra setup needed)
 
 By default, KGgraph auto-fills edge time fields internally:
@@ -71,6 +114,8 @@ Main tools:
 - `kg_add_fact_edge`
 - `kg_add_skill_edge`
 - `kg_ingest_statement`
+- `kg_record_decision`
+- `kg_review_decision`
 - `kg_expand_reasoning`
 - `kg_lookup_node_exact`
 - `kg_lookup_node_semantic`
@@ -94,6 +139,7 @@ In the viewer, set `start-id` / `max-depth` / `graph-kind`, then click `Refresh`
 
 - not a full logical reasoner
 - LLM ingestion can still create noisy nodes/edges
+- decision quality still depends on the user-supplied evidence and failure conditions
 - semantic lookup requires embeddings
 - SQLite target is local/small-to-medium agent memory
 

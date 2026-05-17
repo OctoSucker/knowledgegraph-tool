@@ -12,6 +12,8 @@ const (
 	ToolAddFactEdge        = "kg_add_fact_edge"
 	ToolAddSkillEdge       = "kg_add_skill_edge"
 	ToolIngestStatement    = "kg_ingest_statement"
+	ToolRecordDecision     = "kg_record_decision"
+	ToolReviewDecision     = "kg_review_decision"
 	ToolAttachEdgeEvidence = "kg_attach_edge_evidence"
 	ToolVerifyEdge         = "kg_verify_edge"
 	ToolLookupNodeExact    = "kg_lookup_node_exact"
@@ -49,6 +51,8 @@ func (s *Service) ToolNames() []string {
 		ToolAddFactEdge,
 		ToolAddSkillEdge,
 		ToolIngestStatement,
+		ToolRecordDecision,
+		ToolReviewDecision,
 		ToolAttachEdgeEvidence,
 		ToolVerifyEdge,
 		ToolLookupNodeExact,
@@ -112,6 +116,85 @@ func (s *Service) Call(ctx context.Context, tool string, arguments map[string]an
 		model, _ := parseOptionalString(arguments, "model", "")
 		defaultConfidence, _ := parseOptionalFloat(arguments, "default_confidence", DefaultIngestConfidence)
 		return s.IngestStatement(ctx, statement, graphKind, sourceType, sourceRef, model, defaultConfidence)
+	case ToolRecordDecision:
+		market, err := parseRequiredString(arguments, tool, "market")
+		if err != nil {
+			return nil, err
+		}
+		thesis, err := parseRequiredString(arguments, tool, "thesis")
+		if err != nil {
+			return nil, err
+		}
+		action, err := parseRequiredString(arguments, tool, "action")
+		if err != nil {
+			return nil, err
+		}
+		confidence, _ := parseOptionalFloat(arguments, "confidence", DefaultIngestConfidence)
+		evidence, err := parseOptionalStringList(arguments, "evidence")
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", tool, err)
+		}
+		counterEvidence, err := parseOptionalStringList(arguments, "counter_evidence")
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", tool, err)
+		}
+		failureConditions, err := parseOptionalStringList(arguments, "failure_conditions")
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", tool, err)
+		}
+		nextTriggers, err := parseOptionalStringList(arguments, "next_triggers")
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", tool, err)
+		}
+		positionRule, _ := parseOptionalString(arguments, "position_rule", "")
+		sourceRef, _ := parseOptionalString(arguments, "source_ref", "")
+		return s.RecordDecision(ctx, DecisionRecordInput{
+			Market:            market,
+			Thesis:            thesis,
+			Action:            action,
+			Confidence:        confidence,
+			Evidence:          evidence,
+			CounterEvidence:   counterEvidence,
+			FailureConditions: failureConditions,
+			NextTriggers:      nextTriggers,
+			PositionRule:      positionRule,
+			SourceRef:         sourceRef,
+		})
+	case ToolReviewDecision:
+		market, err := parseRequiredString(arguments, tool, "market")
+		if err != nil {
+			return nil, err
+		}
+		thesis, err := parseRequiredString(arguments, tool, "thesis")
+		if err != nil {
+			return nil, err
+		}
+		outcome, err := parseRequiredString(arguments, tool, "outcome")
+		if err != nil {
+			return nil, err
+		}
+		realizedResult, err := parseRequiredString(arguments, tool, "realized_result")
+		if err != nil {
+			return nil, err
+		}
+		lessons, err := parseOptionalStringList(arguments, "lessons")
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", tool, err)
+		}
+		ruleUpdates, err := parseOptionalStringList(arguments, "rule_updates")
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", tool, err)
+		}
+		sourceRef, _ := parseOptionalString(arguments, "source_ref", "")
+		return s.ReviewDecision(ctx, DecisionReviewInput{
+			Market:         market,
+			Thesis:         thesis,
+			Outcome:        outcome,
+			RealizedResult: realizedResult,
+			Lessons:        lessons,
+			RuleUpdates:    ruleUpdates,
+			SourceRef:      sourceRef,
+		})
 	case ToolExpandReasoning:
 		startID, err := parseRequiredString(arguments, tool, "start_id")
 		if err != nil {
@@ -340,6 +423,39 @@ func ToolSchema(tool string) map[string]any {
 			"required":             []string{"statement"},
 			"additionalProperties": false,
 		}
+	case ToolRecordDecision:
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"market":             map[string]any{"type": "string", "description": "Market or decision object"},
+				"thesis":             map[string]any{"type": "string", "description": "Decision thesis to freeze"},
+				"action":             map[string]any{"type": "string", "description": "buy|no-buy|hold|reduce|sell|wait|watch"},
+				"confidence":         map[string]any{"type": "number"},
+				"evidence":           map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+				"counter_evidence":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+				"failure_conditions": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+				"next_triggers":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+				"position_rule":      map[string]any{"type": "string"},
+				"source_ref":         map[string]any{"type": "string"},
+			},
+			"required":             []string{"market", "thesis", "action", "evidence", "counter_evidence", "failure_conditions"},
+			"additionalProperties": false,
+		}
+	case ToolReviewDecision:
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"market":          map[string]any{"type": "string", "description": "Market or decision object"},
+				"thesis":          map[string]any{"type": "string", "description": "Original thesis being reviewed"},
+				"outcome":         map[string]any{"type": "string", "description": "correct|incorrect|mixed|invalidated|unresolved"},
+				"realized_result": map[string]any{"type": "string", "description": "What actually happened"},
+				"lessons":         map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+				"rule_updates":    map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+				"source_ref":      map[string]any{"type": "string"},
+			},
+			"required":             []string{"market", "thesis", "outcome", "realized_result"},
+			"additionalProperties": false,
+		}
 	case ToolAttachEdgeEvidence:
 		return map[string]any{
 			"type": "object",
@@ -413,6 +529,10 @@ func ToolDescription(tool string) string {
 		return "Create or update a skill/procedure edge with activation rule."
 	case ToolIngestStatement:
 		return "Ingest natural-language statement by extracting nodes/edges with LLM and writing them to graph."
+	case ToolRecordDecision:
+		return "Record a disciplined trading decision with thesis, action, evidence, counter-evidence, failure conditions, triggers, and position rule."
+	case ToolReviewDecision:
+		return "Review a recorded decision, store the realized result and lessons, and mark thesis/action edges as verified or failed."
 	case ToolAttachEdgeEvidence:
 		return "Attach an evidence item to an edge and update success/failure counters."
 	case ToolVerifyEdge:
@@ -565,20 +685,30 @@ func parseOptionalStringList(args map[string]any, field string) ([]string, error
 	if !ok || raw == nil {
 		return nil, nil
 	}
-	items, ok := raw.([]any)
-	if !ok {
+	var out []string
+	switch items := raw.(type) {
+	case []any:
+		out = make([]string, 0, len(items))
+		for _, item := range items {
+			s, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("%s must be an array of strings", field)
+			}
+			s = strings.TrimSpace(s)
+			if s != "" {
+				out = append(out, s)
+			}
+		}
+	case []string:
+		out = make([]string, 0, len(items))
+		for _, item := range items {
+			s := strings.TrimSpace(item)
+			if s != "" {
+				out = append(out, s)
+			}
+		}
+	default:
 		return nil, fmt.Errorf("%s must be an array of strings", field)
-	}
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		s, ok := item.(string)
-		if !ok {
-			return nil, fmt.Errorf("%s must be an array of strings", field)
-		}
-		s = strings.TrimSpace(s)
-		if s != "" {
-			out = append(out, s)
-		}
 	}
 	return out, nil
 }

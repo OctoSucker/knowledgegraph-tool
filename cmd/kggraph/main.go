@@ -36,6 +36,10 @@ func main() {
 		runAddEdge(ctx, args, kggraph.ToolAddSkillEdge)
 	case "ingest-statement":
 		runIngestStatement(ctx, args)
+	case "record-decision":
+		runRecordDecision(ctx, args)
+	case "review-decision":
+		runReviewDecision(ctx, args)
 	case "attach-edge-evidence":
 		runAttachEdgeEvidence(ctx, args)
 	case "verify-edge":
@@ -64,7 +68,7 @@ func main() {
 }
 
 func usage() string {
-	return "commands: upsert-node, add-fact-edge, add-skill-edge, ingest-statement, attach-edge-evidence, verify-edge, expand-reasoning, lookup-node-exact, lookup-node-semantic, list-nodes, list-edges, call, serve-mcp, graph-view"
+	return "commands: upsert-node, add-fact-edge, add-skill-edge, ingest-statement, record-decision, review-decision, attach-edge-evidence, verify-edge, expand-reasoning, lookup-node-exact, lookup-node-semantic, list-nodes, list-edges, call, serve-mcp, graph-view"
 }
 
 func addCommonFlags(fs *flag.FlagSet, c *commonFlags) {
@@ -204,6 +208,77 @@ func runIngestStatement(ctx context.Context, argv []string) {
 	exitOnOpenError(err)
 	defer svc.Close()
 	out, err := svc.Call(ctx, kggraph.ToolIngestStatement, args)
+	writeResult(err, out)
+}
+
+func runRecordDecision(ctx context.Context, argv []string) {
+	fs := flag.NewFlagSet("record-decision", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	var cfg commonFlags
+	addCommonFlags(fs, &cfg)
+	var market, thesis, action, evidenceJSON, counterEvidenceJSON, failureConditionsJSON, nextTriggersJSON, positionRule, sourceRef string
+	var confidence float64
+	fs.StringVar(&market, "market", "", "market or decision object")
+	fs.StringVar(&thesis, "thesis", "", "decision thesis to freeze")
+	fs.StringVar(&action, "action", "", "buy, no-buy, hold, reduce, sell, wait, or watch")
+	fs.Float64Var(&confidence, "confidence", kggraph.DefaultIngestConfidence, "decision confidence in [0,1]")
+	fs.StringVar(&evidenceJSON, "evidence-json", "[]", "JSON array of supporting evidence strings")
+	fs.StringVar(&counterEvidenceJSON, "counter-evidence-json", "[]", "JSON array of counter-evidence strings")
+	fs.StringVar(&failureConditionsJSON, "failure-conditions-json", "[]", "JSON array of thesis failure conditions")
+	fs.StringVar(&nextTriggersJSON, "next-triggers-json", "[]", "JSON array of review trigger strings")
+	fs.StringVar(&positionRule, "position-rule", "", "position sizing or risk rule")
+	fs.StringVar(&sourceRef, "source-ref", "", "source reference")
+	mustParse(fs, argv)
+	evidence := mustParseStringArrayFlag("evidence-json", evidenceJSON)
+	counterEvidence := mustParseStringArrayFlag("counter-evidence-json", counterEvidenceJSON)
+	failureConditions := mustParseStringArrayFlag("failure-conditions-json", failureConditionsJSON)
+	nextTriggers := mustParseStringArrayFlag("next-triggers-json", nextTriggersJSON)
+	svc, err := openService(cfg)
+	exitOnOpenError(err)
+	defer svc.Close()
+	out, err := svc.Call(ctx, kggraph.ToolRecordDecision, map[string]any{
+		"market":             market,
+		"thesis":             thesis,
+		"action":             action,
+		"confidence":         confidence,
+		"evidence":           anySlice(evidence),
+		"counter_evidence":   anySlice(counterEvidence),
+		"failure_conditions": anySlice(failureConditions),
+		"next_triggers":      anySlice(nextTriggers),
+		"position_rule":      positionRule,
+		"source_ref":         sourceRef,
+	})
+	writeResult(err, out)
+}
+
+func runReviewDecision(ctx context.Context, argv []string) {
+	fs := flag.NewFlagSet("review-decision", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	var cfg commonFlags
+	addCommonFlags(fs, &cfg)
+	var market, thesis, outcome, realizedResult, lessonsJSON, ruleUpdatesJSON, sourceRef string
+	fs.StringVar(&market, "market", "", "market or decision object")
+	fs.StringVar(&thesis, "thesis", "", "original thesis being reviewed")
+	fs.StringVar(&outcome, "outcome", "", "correct, incorrect, mixed, invalidated, or unresolved")
+	fs.StringVar(&realizedResult, "realized-result", "", "what actually happened")
+	fs.StringVar(&lessonsJSON, "lessons-json", "[]", "JSON array of review lessons")
+	fs.StringVar(&ruleUpdatesJSON, "rule-updates-json", "[]", "JSON array of rule updates")
+	fs.StringVar(&sourceRef, "source-ref", "", "source reference")
+	mustParse(fs, argv)
+	lessons := mustParseStringArrayFlag("lessons-json", lessonsJSON)
+	ruleUpdates := mustParseStringArrayFlag("rule-updates-json", ruleUpdatesJSON)
+	svc, err := openService(cfg)
+	exitOnOpenError(err)
+	defer svc.Close()
+	out, err := svc.Call(ctx, kggraph.ToolReviewDecision, map[string]any{
+		"market":          market,
+		"thesis":          thesis,
+		"outcome":         outcome,
+		"realized_result": realizedResult,
+		"lessons":         anySlice(lessons),
+		"rule_updates":    anySlice(ruleUpdates),
+		"source_ref":      sourceRef,
+	})
 	writeResult(err, out)
 }
 
@@ -377,6 +452,14 @@ func mustParse(fs *flag.FlagSet, argv []string) {
 	if err := fs.Parse(argv); err != nil {
 		writeJSONAndExit(2, map[string]any{"error": err.Error()})
 	}
+}
+
+func mustParseStringArrayFlag(name, raw string) []string {
+	var out []string
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		writeJSONAndExit(2, map[string]any{"error": fmt.Sprintf("parse %s: %v", name, err)})
+	}
+	return out
 }
 
 func exitOnOpenError(err error) {
